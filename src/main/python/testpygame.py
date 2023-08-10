@@ -1,4 +1,4 @@
-# testqt6shapes.py
+# testpygame.py
 
 import sys
 # from enum import Enum

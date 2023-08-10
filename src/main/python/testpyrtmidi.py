@@ -1,4 +1,4 @@
-# testqt6shapes.py
+# testpyrtmidi.py
 
 import sys
 # from enum import Enum
