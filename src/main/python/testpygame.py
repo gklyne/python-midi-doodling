@@ -106,4 +106,4 @@ def test_piano_scale(device_id=None):
     # Exit
 
 
-test_piano_scale(6)
+test_piano_scale(8)
