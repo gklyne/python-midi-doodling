@@ -7,7 +7,7 @@ import time
 
 import rtmidi
 
-from midiutils import Note, Patch, Patches, MidiMessage
+from midiutils import Note, Chord, Patch, Patches, MidiMessage
 
 # @@TODO:
 #
@@ -103,9 +103,12 @@ class MidiOut:
         But the rtmidi2 Python library appears to have methods that could utilize this.
         """
         #print(f"send: {message}")
-        self.midiout.send_message(message)
+        if isinstance(message[0],list):
+            for m in message:
+                self.send(m)
+        else:
+            self.midiout.send_message(message)
         return
-
 
 # ---- Test helper ----
 
@@ -116,18 +119,11 @@ def assertEq(s1, s2):
 
 # ---- Test output ----
 
-def test_piano_scale(port_number=None, port_name=None):
-
+def test_scales(port_number=None, port_name=None):
     # Channel number to use, in range 1-16, appears in the initial message byte
     channel = 1
-
-    # Instrument (program number) to use, in range 1-128
-    patch = Patch.GRAND_PIANO
-    # patch = Patch.CHURCH_ORGAN
-
     # Generate some notes
     midiout = MidiOut(port_number=port_number, port_name=port_name)
-    midiout.send(MidiMessage.program_change(channel, patch))
     try:
         for p in Patches():
             scale_notes = (
@@ -162,8 +158,6 @@ def test_piano_scale(port_number=None, port_name=None):
 
             for note in (scale_notes):
                 print(f"Play note {note}")
-                #@@@@ note_on  = [0x90, note, 112]
-                #@@@@ note_off = [0x80, note, 0]
                 midiout.send(MidiMessage.note_on(channel, note))
                 time.sleep(0.25)
                 midiout.send(MidiMessage.note_off(channel, note))
@@ -175,7 +169,75 @@ def test_piano_scale(port_number=None, port_name=None):
 
     # Exit
 
-test_piano_scale(port_name="iPad")
+# test_scales(port_name="iPad")
+
+def test_Cmaj_chords(port_number=None, port_name=None):
+    # Channel number to use, in range 1-16, appears in the initial message byte
+    channel = 1
+    # Instrument (program number) to use, in range 1-128
+    patch = Patch.GRAND_PIANO
+    # patch = Patch.CHURCH_ORGAN
+    # Generate some notes
+    midiout = MidiOut(port_number=port_number, port_name=port_name)
+    midiout.send(MidiMessage.program_change(channel, patch))
+    Cmaj_chords = (
+        Chord(Note.C3, Note.E3, Note.G3),
+        Chord(Note.F3, Note.A3, Note.C4),
+        Chord(Note.G3, Note.B3, Note.D4),
+        Chord(Note.F3, Note.A3, Note.C4),
+        Chord(Note.C3, Note.E3, Note.G3)
+        )
+    try:
+        for _ in range(4):
+            for c in Cmaj_chords:
+                print(f"Play chord {c}")
+                midiout.send(MidiMessage.chord_on(channel, c))
+                time.sleep(0.5)
+                midiout.send(MidiMessage.chord_off(channel, c))
+                time.sleep(0.05)
+    finally:
+        # midiout.close()
+        del midiout
+
+def test_Cmaj_arpeggios(port_number=None, port_name=None):
+    # Channel number to use, in range 1-16, appears in the initial message byte
+    channel1 = 1
+    channel2 = 2
+    # Instrument (program number) to use, in range 1-128
+    # patch = Patch.GRAND_PIANO
+    patch1 = Patch.REED_ORGAN
+    patch2 = Patch.ORCHESTRAL_HARP
+    # Generate some notes
+    midiout = MidiOut(port_number=port_number, port_name=port_name)
+    midiout.send(MidiMessage.program_change(channel1, patch1))
+    midiout.send(MidiMessage.program_change(channel2, patch2))
+    Cmaj_chords = (
+        Chord(Note.C3, Note.E3, Note.G3),
+        Chord(Note.F3, Note.A3, Note.C4),
+        Chord(Note.G3, Note.B3, Note.D4),
+        Chord(Note.F3, Note.A3, Note.C4),
+        Chord(Note.C3, Note.E3, Note.G3)
+        )
+    try:
+        for _ in range(2):
+            for c in Cmaj_chords:
+                print(f"Play arpeggio {c}")
+                midiout.send(MidiMessage.chord_on(channel2, c))
+                for n in c:
+                    midiout.send(MidiMessage.note_on(channel1, n))
+                    time.sleep(0.35)
+                    midiout.send(MidiMessage.note_off(channel1, n))
+                for n in list(reversed(c))[1:]:
+                    midiout.send(MidiMessage.note_on(channel1, n))
+                    time.sleep(0.35)
+                    midiout.send(MidiMessage.note_off(channel1, n))
+                midiout.send(MidiMessage.chord_off(channel2, c))
+                time.sleep(0.35)
+    finally:
+        # midiout.close()
+        del midiout
+
+test_Cmaj_arpeggios(port_name="iPad")
 
 
 """

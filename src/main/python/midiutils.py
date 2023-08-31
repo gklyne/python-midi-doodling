@@ -134,6 +134,33 @@ if __name__ == "__main__":
 # Chord class
 # -----------------
 
+class Chord:
+    """
+    Represents an arbitrary selection of notes to be played together
+    """
+
+    def __init__(self, *notes):
+        self.notes = notes
+        return
+
+    def __str__(self):
+        return "+".join(map(str, self.notes))
+
+    def __iter__(self):
+        for n in self.notes:
+            yield n
+        return
+
+    def __reversed__(self):
+        return Chord(*reversed(self.notes))
+
+# ---- Test ----
+if __name__ == "__main__":
+    Cchord = Chord(Note.C3, Note.E3, Note.G3)
+    print(f"C chord {Cchord}")
+    for n in Cchord:
+        print(f"C chord note {n}")
+# ----
 
 # -----------------
 # Scale class
@@ -146,7 +173,7 @@ if __name__ == "__main__":
 
 class Patch:
     """
-    Identfiers and labels for patches in General Midi
+    Identifiers and labels for patches in General Midi
     """
     patch_list = [None for _ in range(129)]
 
@@ -359,6 +386,24 @@ class MidiMessage:
         #
         # See: https://cmtext.indiana.edu/MIDI/chapter3_channel_voice_messages.php
         return [0x80+channel-1, note.midinum, velocity]
+
+    @staticmethod
+    def chord_on(channel, chord, velocity=64):
+        # channel   MIDI channel number 1-16
+        # chord     Chord value, instance of Chord class (above)
+        # velocity  Key press velocity (1-127, defaults to 64).  0 may turn chord off.
+        #
+        # Returns list of messages to start playing chord
+        return [ MidiMessage.note_on(channel, n, velocity) for n in chord]
+
+    @staticmethod
+    def chord_off(channel, chord, velocity=64):
+        # channel   MIDI channel number 1-16
+        # chord     Chord value, instance of Chord class (above)
+        # velocity  Key press velocity (1-127, defaults to 64).  0 may turn chord off.
+        #
+        # Returns list of messages to stop playing chord
+        return [ MidiMessage.note_off(channel, n, velocity) for n in chord]
 
     @staticmethod
     def program_change(channel, patch):
