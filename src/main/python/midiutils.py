@@ -2,18 +2,11 @@
 #
 # Utilities for constructing MIDI messages
 #
-# Defines classes 'Note', 'Chord', 'Scale', 'Patch' and 'MidiMessage' to serve as a namespaces for constants and functions
-# Intended to be independent of any actual Midi library used.  Assumes Midi messages are represented as
-# a sequence of byte values (integers).
+# Defines classes 'Note', 'Chord', 'Scale', 'Patch' and 'MidiMessage' to serve as
+# namespaces for constants and functions.
 #
-
-# import sys
-# from enum import Enum
-# from copy import copy
-# import time
-
-# @@TODO:
-#
+# Intended to be independent of any actual Midi library used.  
+# Assumes Midi messages are represented as a sequence of byte values (integers).
 #
 
 # ---- Test helper ----
@@ -32,6 +25,12 @@ class Note:
     Defines a set of constants used (by convention) to represent note pitches in Midi messages
 
     See: https://computermusicresource.com/midikeys.html
+
+    Later changed to follow Scientific pitch notation (SPN), also known as 
+    American standard pitch notation (ASPN) and international pitch notation (IPN),
+    per https://en.wikipedia.org/wiki/Scientific_pitch_notation.
+
+    This also conveniently matches the key labels used in my BS-16 synthesizer software.
     """
     notes = [[] for _ in range(128)]
     accidental_flat  = "♭"  # 0x266d, U+266D
@@ -40,21 +39,22 @@ class Note:
 
     @classmethod
     def __class__init__(cls):
-        Note.def_octave_notes("0", 24)
-        Note.def_octave_notes("1", 36)
-        Note.def_octave_notes("2", 48)
-        Note.def_octave_notes("3", 60)
-        Note.def_octave_notes("4", 72)
-        Note.def_octave_notes("5", 84)
-        Note.def_octave_notes("6", 96)
-        Note.def_octave_notes("7", 108)
-        Note.def_octave_notes("9", 120)
-        setattr(cls, 'MID_C',      Note.C3)
-        setattr(cls, 'MID_C_NOTE', Note.notes[Note.C3.midinum][0])
+        Note.def_octave_notes(0, 12)
+        Note.def_octave_notes(1, 24)
+        Note.def_octave_notes(2, 36)
+        Note.def_octave_notes(3, 48)
+        Note.def_octave_notes(4, 60)
+        Note.def_octave_notes(5, 72)
+        Note.def_octave_notes(6, 84)
+        Note.def_octave_notes(7, 96)
+        Note.def_octave_notes(8, 108)
+        Note.def_octave_notes(9, 120)
+        setattr(cls, 'MID_C',      Note.C4)
+        setattr(cls, 'MID_C_NOTE', Note.notes[Note.C4.midinum][0])
         return cls
 
     @classmethod 
-    def def_octave_notes(cls, octavename, basenotenum):
+    def def_octave_notes(cls, octavenum, basenotenum):
         octave_notes = (
               { 'name': "C",  'id': "C",    'offset': 0  }
             , { 'name': "C♮", 'id': "Cnat", 'offset': 0  }
@@ -84,30 +84,61 @@ class Note:
         for n in octave_notes:
             midinum  = basenotenum+n['offset']
             if midinum < 128:
-                note = Note(n['name'], n['id'], octavename, midinum)
+                note = Note(n['name'], n['id'], octavenum, n['offset'], midinum)
                 setattr(cls, note.midiname, note)
                 cls.notes[midinum].append(note)
         return
 
-    def from_midi(cls, midinum):
-        # returns list of Note objects corresponding to the supplied MIDI note number
-        return cls.notes[midinum] 
+    @classmethod 
+    def from_midinum(cls, midinum):
+        # Returns list of Note objects corresponding to the supplied MIDI note number,
+        # or None if the supplied value is not a valid MIDI note number
+        #
+        if midinum >= 0 and midinum < 128:
+            return cls.notes[midinum]
+        return None
 
-    def __init__(self, name, id, midioctave, midinum):
-        noteid   = id[0]   + midioctave + id[1:]
-        midiname = name[0] + midioctave + name[1:]
-        self.ident      = noteid
-        self.notename   = name
-        self.midiname   = midiname
-        self.midinum    = midinum
-        self.midioctave = midioctave
+    @classmethod 
+    def from_octave_offset(cls, octavenum, semioffset):
+        # Returns list of Note objects corresponding to the supplied octave and 
+        # offset in semitones.
+        #
+        # octavenum     is the octave number, per scientific pitch notation.
+        # semioffset    is the offset in semitones of a note within the octave.
+        #
+        # NOTE:
+        # This implementation depends on the simple relationship between MIDI 
+        # note numbers and chromatic (semitone) notes across all the octaves.
+        #
+        midinum  = octavenum*12+semioffset
+        print(f"from_octave_offset: {octavenum}, {semioffset} -> {midinum}")
+        return cls.from_midinum(midinum)
+
+    def __init__(self, name, id, octavenum, octaveoff, midinum):
+        """
+        Create a Note object.
+
+        name        is a display name of a note within an octave (C, C♯, etc.)
+        id          is an code identifier for a note within an octave (C, Cs, etc.)
+        octavenum   is the note's octave number, per scientific pitch notation
+        octaveoff   is the note's chromatic scale offset within the octave (C is 0)
+        midinum     is the note's MIDI note number
+        """
+        noteid   = id[0]   + str(octavenum) + id[1:]
+        midiname = name[0] + str(octavenum) + name[1:]
+        self.ident     = noteid
+        self.notename  = name
+        self.midiname  = midiname
+        self.midinum   = midinum
+        self.octavenum = octavenum
+        self.octaveoff = octaveoff
         return
 
     def __str__(self):
         return self.midiname
 
     def __longstr__(self):
-        return f"Note({self.ident:5s} ({self.midinum}): {self.notename},{self.midioctave}, {self.midiname})"
+        return f"Note({self.ident:5s} ({self.midinum}): {self.notename},{self.octavenum},{self.octaveoff}, {self.midiname})"
 
     def __repr__(self):
         return f"Note.{self.ident}"
@@ -117,14 +148,14 @@ Note.__class__init__()
 # ---- Test ----
 if __name__ == "__main__":
     print(f"Mid_C number {Note.MID_C.midinum}, note {Note.MID_C_NOTE}")
-    for i in range(Note.C3.midinum, Note.G4.midinum):
+    for i in range(Note.C4.midinum, Note.G5.midinum+1):
         print(f"Note number {i} ({Note.notes[i][0]!r}), "
               f"names {[n.midiname for n in Note.notes[i]]}, "
               f"ids {[n.ident for n in Note.notes[i]]}")
-    for i in range(Note.C3.midinum, Note.G4.midinum):
+    for i in range(Note.C4.midinum, Note.G5.midinum):
         print(i, ": ", Note.notes[i][0].__longstr__())
         print(i, ": ", Note.notes[i][1].__longstr__())
-    for i in range(Note.C3.midinum, Note.G4.midinum):
+    for i in range(Note.C4.midinum, Note.G5.midinum):
         print(i, ": ", repr(Note.notes[i][0]))
         print(i, ": ", repr(Note.notes[i][1]))
 # ----
@@ -156,16 +187,92 @@ class Chord:
 
 # ---- Test ----
 if __name__ == "__main__":
-    Cchord = Chord(Note.C3, Note.E3, Note.G3)
+    Cchord = Chord(Note.C4, Note.E4, Note.G4)
     print(f"C chord {Cchord}")
     for n in Cchord:
         print(f"C chord note {n}")
 # ----
 
-# -----------------
-# Scale class
-# -----------------
+# ------------------
+# KeySignature class
+# ------------------
 
+class KeySignature:
+    """
+    Represents a key signature class, and provides methods to access notes and chords
+    using notes from its scale.
+
+    See:
+        https://en.wikipedia.org/wiki/Scale_(music) 
+        https://en.wikipedia.org/wiki/Scientific_pitch_notation
+    """
+
+    keysig_params = {
+        'Cmaj': { 'name': "C major", 'base': Note.C4, 'type': "major"  },
+        'Amin': { 'name': "A minor", 'base': Note.A4, 'type': "minor"  }
+    }
+
+    scale_intervals = {
+        'major': [0, 2, 4, 5, 7, 9, 11],    # 2,2,1,2,2,2,1
+        'minor': [0, 2, 3, 5, 7, 8, 10],    # 2,1,2,2,1,2,2
+    }
+
+    @classmethod
+    def __class_init__(cls):
+        return
+
+    @classmethod
+    def get_key(cls, id):
+        params = cls.keysig_params[id]
+        return KeySignature(id, params['name'], params['base'], params['type'])
+
+    def __init__(self, sigid, signame, sigbase, sigtype):
+        """
+        Creates a key signature object.
+
+        sigid       is the identifier (used for names in code)
+        signame     is the display name
+        sigbase     is the base (root of 1st chord) in octave 4 per Scientific 
+                    Pitch Notation (i.e. the octave containing middle-C),
+                    supplied as a Note value
+        sigtype     is the type of scale, which in turn defines a set of intervals
+                    within an octave that correspond to the scale notes
+        """
+        self.sigid     = sigid
+        self.signame   = signame
+        self.sigbase   = sigbase
+        self.sigtype   = sigtype
+        self.intervals = self.scale_intervals[sigtype]
+        return
+
+    def __str__(self):
+        return self.signame
+
+    def get_note(self, octavenum, degree):
+        """
+        Returns a Note object corresponding to the indicated octave and degree.
+
+        octavenum   is the octave number, per scientific pitch notation, in which
+                    the dominant note of the scale occurs.
+        degree      is the number 1-7 of the scale note within the octave, where
+                    the dominant note is number 1.
+        """
+        rootoctave = self.sigbase.octavenum
+        rootoffset = self.sigbase.octaveoff
+        noteoctave = rootoctave-4 + octavenum        
+        noteoffset = rootoffset   + self.intervals[degree-1]
+        if noteoffset >= 12:
+            noteoctave += 1
+            noteoffset -= 12
+        rootnotes = Note.from_octave_offset(noteoctave, noteoffset)
+        print(f"get_note {octavenum}, {degree} -> {rootnotes}")
+        return rootnotes[0]
+
+    def iter_octave(self, octavenum):
+        # Iterator over notes in scale for given octave
+        for i in range(1, len(self.intervals)+1):
+            yield self.get_note(octavenum, i)
+        return
 
 # -----------------
 # Patch class
