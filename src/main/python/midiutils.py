@@ -85,7 +85,7 @@ class Note:
             midinum  = basenotenum+n['offset']
             if midinum < 128:
                 note = Note(n['name'], n['id'], octavenum, n['offset'], midinum)
-                setattr(cls, note.midiname, note)
+                setattr(cls, note.ident, note)
                 cls.notes[midinum].append(note)
         return
 
@@ -111,7 +111,7 @@ class Note:
         # note numbers and chromatic (semitone) notes across all the octaves.
         #
         midinum  = octavenum*12+semioffset
-        print(f"from_octave_offset: {octavenum}, {semioffset} -> {midinum}")
+        #print(f"from_octave_offset: {octavenum}, {semioffset} -> {midinum}")
         return cls.from_midinum(midinum)
 
     def __init__(self, name, id, octavenum, octaveoff, midinum):
@@ -124,8 +124,8 @@ class Note:
         octaveoff   is the note's chromatic scale offset within the octave (C is 0)
         midinum     is the note's MIDI note number
         """
-        noteid   = id[0]   + str(octavenum) + id[1:]
-        midiname = name[0] + str(octavenum) + name[1:]
+        noteid   = id[0] + str(octavenum) + id[1:]
+        midiname = name  + str(octavenum)
         self.ident     = noteid
         self.notename  = name
         self.midiname  = midiname
@@ -207,9 +207,28 @@ class KeySignature:
         https://en.wikipedia.org/wiki/Scientific_pitch_notation
     """
 
+    # Major scales here are grouped together with their relative minors
     keysig_params = {
-        'Cmaj': { 'name': "C major", 'base': Note.C4, 'type': "major"  },
-        'Amin': { 'name': "A minor", 'base': Note.A4, 'type': "minor"  }
+        'C_maj':    { 'name': "C major",  'base': Note.C4,  'type': "major"  },
+        'A_min':    { 'name': "A minor",  'base': Note.A4,  'type': "minor"  },
+
+        'G_maj':    { 'name': "G major",  'base': Note.G4,  'type': "major"  },
+        'D_min':    { 'name': "D minor",  'base': Note.D4,  'type': "minor"  },
+
+        'D_maj':    { 'name': "D major",  'base': Note.D4,  'type': "major"  },
+        'G_min':    { 'name': "G minor",  'base': Note.G4,  'type': "minor"  },
+
+        'A_maj':    { 'name': "A major",  'base': Note.A4,  'type': "major"  },
+        'C_min':    { 'name': "C minor",  'base': Note.C4,  'type': "minor"  },
+
+        'E_maj':    { 'name': "E major",  'base': Note.E4,  'type': "major"  },
+        'F_min':    { 'name': "F minor",  'base': Note.F4,  'type': "minor"  },
+
+        'B_maj':    { 'name': "B major",  'base': Note.B4,  'type': "major"  },
+        'Bb_min':   { 'name': "B♭ minor", 'base': Note.B4b, 'type': "minor"  },
+
+        'Fs_maj':   { 'name': "F♯ major", 'base': Note.F4s, 'type': "major"  },
+        'Eb_min':   { 'name': "E♭ minor", 'base': Note.E4b, 'type': "minor"  },
     }
 
     scale_intervals = {
@@ -220,6 +239,10 @@ class KeySignature:
     @classmethod
     def __class_init__(cls):
         return
+
+    @classmethod
+    def iter_keys(cls):
+        return cls.keysig_params.keys()
 
     @classmethod
     def get_key(cls, id):
@@ -265,7 +288,7 @@ class KeySignature:
             noteoctave += 1
             noteoffset -= 12
         rootnotes = Note.from_octave_offset(noteoctave, noteoffset)
-        print(f"get_note {octavenum}, {degree} -> {rootnotes}")
+        #print(f"get_note {octavenum}, {degree} -> {rootnotes}")
         return rootnotes[0]
 
     def iter_octave(self, octavenum):

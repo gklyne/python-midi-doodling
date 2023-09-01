@@ -244,19 +244,26 @@ def test_keysig_scales(port_number=None, port_name=None):
     midiout = MidiOut(port_number=port_number, port_name=port_name)
     midiout.send(MidiMessage.program_change(channel, patch))
     keysigs = []
-    for s in ('Cmaj', 'Amin'):
+    for s in ('C_maj', 'A_min', 'B_maj', 'Bb_min'):
         keysigs.append(KeySignature.get_key(s))
+    keysigs = [KeySignature.get_key(k) for k in KeySignature.iter_keys()]
     try:
         for keysig in keysigs:
             print(f"Play {keysig} scale")
-            notes = itertools.chain(keysig.iter_octave(4), [keysig.get_note(5,1)])
+            notes = list(itertools.chain(keysig.iter_octave(4), [keysig.get_note(5,1)]))
             #notes = keysig.iter_octave(4)
             for note in notes:
                 print(f"Play note {note}")
                 midiout.send(MidiMessage.note_on(channel, note))
                 time.sleep(0.25)
                 midiout.send(MidiMessage.note_off(channel, note))
+                time.sleep(0.1)
+            for note in reversed(notes[:-1]):
+                print(f"Play note {note}")
+                midiout.send(MidiMessage.note_on(channel, note))
                 time.sleep(0.25)
+                midiout.send(MidiMessage.note_off(channel, note))
+                time.sleep(0.1)
     finally:
         # midiout.close()
         del midiout
